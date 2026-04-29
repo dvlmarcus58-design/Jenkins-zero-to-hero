@@ -1,20 +1,54 @@
 pipeline {
   agent none
+
   stages {
+
     stage('Back-end') {
       agent {
-        docker { image 'maven:3.8.1-adoptopenjdk-11' }
+        docker { image 'maven:3.9.1-adoptopenjdk-11' }
       }
       steps {
         sh 'mvn --version'
       }
     }
+
     stage('Front-end') {
       agent {
         docker { image 'node:16-alpine' }
       }
       steps {
         sh 'node --version'
+      }
+    }
+
+    stage('Java Hello World') {
+      agent {
+        docker { image 'openjdk:11' }
+      }
+      steps {
+        sh '''
+          cat <<EOF > HelloWorld.java
+public class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println("Hello, World from Jenkins Pipeline!");
+    }
+}
+EOF
+          javac HelloWorld.java
+          java HelloWorld
+        '''
+      }
+    }
+
+    stage('DB') {
+      agent {
+        docker { image 'mysql:8.0' }
+      }
+      steps {
+        sh '''
+          echo "MySQL container started (demo only)"
+          echo "To actually run queries, you need a running DB + credentials"
+        '''
       }
     }
   }
