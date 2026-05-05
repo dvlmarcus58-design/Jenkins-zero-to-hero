@@ -12,14 +12,17 @@ pipeline {
         SONAR_URL = "http://10.0.2.15:9000"
         GIT_REPO_NAME = "Jenkins-zero-to-hero"
         GIT_USER_NAME = "dvlmarcus58-design"
+        DOCKER_REGISTRY_URL = "https://index.docker.io/v1/"
+        DOCKER_IMAGE_NAME = "abhishekf5/ultimate-cicd"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 sh 'echo Checkout stage passed'
                 // Uncomment if you want to clone repo
-                // git branch: 'main', url: 'https://github.com/dvlmarcus58-design/Jenkins-Zero-To-Hero.git'
+                // git branch: 'main', url: 'https://github.com/dvlmarcus58-design/Jenkins-zero-to-hero.git'
             }
         }
 
@@ -45,9 +48,7 @@ pipeline {
 
         stage('Build and Push Docker Image') {
             environment {
-                DOCKER_IMAGE = "abhishekf5/ultimate-cicd:${BUILD_NUMBER}"
-                // REGISTRY_CREDENTIALS uses Docker Hub access token stored in Jenkins
-                REGISTRY_CREDENTIALS = credentials('docker-cred')
+                DOCKER_IMAGE = "${DOCKER_IMAGE_NAME}:${BUILD_NUMBER}"
             }
             steps {
                 script {
@@ -61,12 +62,10 @@ pipeline {
                     // Build Docker image
                     sh "cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && docker build -t ${DOCKER_IMAGE} ."
 
-                    // Login, push, logout
-                    sh '''
-                        echo $REGISTRY_CREDENTIALS_PSW | docker login -u $REGISTRY_CREDENTIALS_USR --password-stdin
-                        docker push ${DOCKER_IMAGE}
-                        docker logout
-                    '''
+                    // Push Docker image using Jenkins Docker Registry credential
+                    withDockerRegistry([credentialsId: 'docker-cred', url: "${DOCKER_REGISTRY_URL}"]) {
+                        sh "docker push ${DOCKER_IMAGE}"
+                    }
                 }
             }
         }
@@ -86,6 +85,7 @@ pipeline {
                 }
             }
         }
+
     }
 
     post {
