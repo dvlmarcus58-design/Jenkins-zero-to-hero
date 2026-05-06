@@ -73,11 +73,12 @@ pipeline {
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                     script {
                         dir("${env.WORKSPACE}") {
-                            // Ensure we are in a Git repo
-                            checkout scm
+                            // Clean workspace and clone repo inside Docker container
+                            sh "rm -rf *" // optional, cleans workspace to avoid conflicts
+                            sh "git clone https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git ."
 
                             // Configure Git user
-                            sh "git config user.name 'dvlmarcus58-design'"
+                            sh "git config user.name '${GIT_USER_NAME}'"
                             sh "git config user.email 'dvlmarcus58@gmail.com'"
 
                             // Update deployment file with build number
@@ -91,7 +92,7 @@ pipeline {
                             sh 'git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"'
 
                             // Push changes using GitHub token
-                            sh "git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main"
+                            sh "git push origin main"
                         }
                     }
                 }
