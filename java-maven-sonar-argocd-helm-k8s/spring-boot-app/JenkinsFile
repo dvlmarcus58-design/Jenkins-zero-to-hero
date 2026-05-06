@@ -20,7 +20,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                // Checkout the repo into the workspace
+                // Checkout the repo inside the container
                 checkout scm
             }
         }
@@ -61,7 +61,7 @@ pipeline {
                     // Build Docker image
                     sh "cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && docker build -t ${DOCKER_IMAGE} ."
 
-                    // Push Docker image securely using Jenkins credential
+                    // Push Docker image using Jenkins Docker Registry credential
                     withDockerRegistry([credentialsId: 'docker-cred', url: "${DOCKER_REGISTRY_URL}"]) {
                         sh "docker push ${DOCKER_IMAGE}"
                     }
@@ -74,7 +74,10 @@ pipeline {
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                     script {
                         dir("${env.WORKSPACE}") {
-                            // Git repo already exists from checkout
+                            // Checkout SCM inside container to make Git commands work
+                            checkout scm
+
+                            // Configure Git user
                             sh "git config user.name '${GIT_USER_NAME}'"
                             sh "git config user.email 'dvlmarcus58@gmail.com'"
 
@@ -84,11 +87,11 @@ pipeline {
                                 sed -i "s/replaceImageTag/\${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
                             """
 
-                            // Commit safely
+                            // Commit changes safely (won’t fail if nothing to commit)
                             sh 'git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml'
                             sh 'git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"'
 
-                            // Push changes securely using token
+                            // Push changes using GitHub token
                             sh "git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main"
                         }
                     }
