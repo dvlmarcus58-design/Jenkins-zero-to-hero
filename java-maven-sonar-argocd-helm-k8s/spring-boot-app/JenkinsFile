@@ -20,6 +20,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
+                // Checkout the repo into the workspace
                 checkout scm
             }
         }
@@ -60,7 +61,7 @@ pipeline {
                     // Build Docker image
                     sh "cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && docker build -t ${DOCKER_IMAGE} ."
 
-                    // Push Docker image using Jenkins Docker Registry credential
+                    // Push Docker image securely using Jenkins credential
                     withDockerRegistry([credentialsId: 'docker-cred', url: "${DOCKER_REGISTRY_URL}"]) {
                         sh "docker push ${DOCKER_IMAGE}"
                     }
@@ -73,11 +74,7 @@ pipeline {
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                     script {
                         dir("${env.WORKSPACE}") {
-                            // Clean workspace and clone repo inside Docker container
-                            sh "rm -rf *" // optional, cleans workspace to avoid conflicts
-                            sh "git clone https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git ."
-
-                            // Configure Git user
+                            // Git repo already exists from checkout
                             sh "git config user.name '${GIT_USER_NAME}'"
                             sh "git config user.email 'dvlmarcus58@gmail.com'"
 
@@ -87,12 +84,12 @@ pipeline {
                                 sed -i "s/replaceImageTag/\${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
                             """
 
-                            // Commit changes safely (won’t fail if nothing to commit)
+                            // Commit safely
                             sh 'git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml'
                             sh 'git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"'
 
-                            // Push changes using GitHub token
-                            sh "git push origin main"
+                            // Push changes securely using token
+                            sh "git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main"
                         }
                     }
                 }
