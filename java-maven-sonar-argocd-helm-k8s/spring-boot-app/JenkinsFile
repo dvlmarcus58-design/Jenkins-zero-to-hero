@@ -20,9 +20,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                sh 'echo Checkout stage passed'
-                // Uncomment if you want to clone repo
-                // git branch: 'main', url: 'https://github.com/dvlmarcus58-design/Jenkins-zero-to-hero.git'
+                checkout scm
             }
         }
 
@@ -70,18 +68,32 @@ pipeline {
             }
         }
 
-        stage('Update Deployment File') {
+        stage('Update Deployment File and Push Git Changes') {
             steps {
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-                    sh '''
-                        git config user.email "dvlmarcus58@gmail.com"
-                        git config user.name "dvlmarcus58-design"
-                        BUILD_NUMBER=${BUILD_NUMBER}
-                        sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
-                        git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
-                        git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                        git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-                    '''
+                    script {
+                        dir("${env.WORKSPACE}") {
+                            // Ensure we are in a Git repo
+                            checkout scm
+
+                            // Configure Git user
+                            sh "git config user.name 'dvlmarcus58-design'"
+                            sh "git config user.email 'dvlmarcus58@gmail.com'"
+
+                            // Update deployment file with build number
+                            sh """
+                                BUILD_NUMBER=${BUILD_NUMBER}
+                                sed -i "s/replaceImageTag/\${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
+                            """
+
+                            // Commit changes safely (won’t fail if nothing to commit)
+                            sh 'git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml'
+                            sh 'git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"'
+
+                            // Push changes using GitHub token
+                            sh "git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main"
+                        }
+                    }
                 }
             }
         }
