@@ -12,6 +12,7 @@ pipeline {
         SONAR_URL = "http://10.0.2.15:9000"
         GIT_REPO_NAME = "Jenkins-zero-to-hero"
         GIT_USER_NAME = "dvlmarcus58-design"
+        GIT_USER_EMAIL = "dvlmarcus58@gmail.com"
         DOCKER_REGISTRY_URL = "https://index.docker.io/v1/"
         DOCKER_IMAGE_NAME = "dvlmarcus58/ultimate-cicd"
     }
@@ -20,7 +21,6 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                // Checkout the repo inside the container
                 checkout scm
             }
         }
@@ -51,7 +51,7 @@ pipeline {
             }
             steps {
                 script {
-                    // Install Docker CLI inside the container
+                    // Install Docker CLI inside container
                     sh '''
                         apt-get update && \
                         apt-get install -y docker.io && \
@@ -74,12 +74,9 @@ pipeline {
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                     script {
                         dir("${env.WORKSPACE}") {
-                            // Checkout SCM inside container to make Git commands work
-                            checkout scm
-
-                            // Configure Git user
+                            // Configure Git user for commits
                             sh "git config user.name '${GIT_USER_NAME}'"
-                            sh "git config user.email 'dvlmarcus58@gmail.com'"
+                            sh "git config user.email '${GIT_USER_EMAIL}'"
 
                             // Update deployment file with build number
                             sh """
@@ -87,12 +84,12 @@ pipeline {
                                 sed -i "s/replaceImageTag/\${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
                             """
 
-                            // Commit changes safely (won’t fail if nothing to commit)
+                            // Commit changes safely
                             sh 'git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml'
                             sh 'git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"'
 
                             // Push changes using GitHub token
-                            sh "git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main"
+                            sh "git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main"
                         }
                     }
                 }
