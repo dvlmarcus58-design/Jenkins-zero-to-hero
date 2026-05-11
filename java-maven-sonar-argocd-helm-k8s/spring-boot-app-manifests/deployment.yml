@@ -18,4 +18,4 @@ spec:
       - name: spring-boot-app
         image: dvlmarcus58/ultimate-cicd:replaceImageTag
         ports:
-        - containerPort: 8080
+        - containerPort: 5001
